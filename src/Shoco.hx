@@ -187,12 +187,8 @@ class Shoco {
                 i++;
             }
 
-            trace('ch #$i $ch');
-
             indices[0] = chr_ids_by_chr[ch];
             last_chr_index = indices[0];
-
-            trace('last_chr_index $last_chr_index');
             
             if( last_chr_index < 0 ) {
                 last_resort();
@@ -205,8 +201,7 @@ class Shoco {
                 n_consecutive = n;
 
                 var next = inp.get(i+n_consecutive);
-                trace('next $i $n_consecutive $next');
-
+                
                 if( next == null ) break;
 
                 current_index = chr_ids_by_chr[next];
@@ -226,8 +221,6 @@ class Shoco {
 
             pack_n = find_best_encoding(indices, n_consecutive);
 
-            trace('pack_n $pack_n', packs[pack_n]);
-
             if( pack_n >= 0 ) {
 
                 code.word = packs[pack_n].word;
@@ -240,7 +233,7 @@ class Shoco {
 
                 //code.word = swap(code.word);
                                 
-                for( i in 0...packs[pack_n].bytes_unpacked ) {
+                for( i in 0...packs[pack_n].bytes_packed ) {
                     o.addByte( code.bytes.get(i) );
                 }
 
@@ -276,8 +269,9 @@ class Shoco {
     }
 
     static function main(){
-        var str = "hello";
+        for( str in ['test','hello shoko','hello how are you today']){
         var outp = compress(str);
-        trace('$str ' + str.length + '=> ' + outp.length);
+        trace('"$str" ' + str.length + ' => ' + outp.length +'', 'ratio : '+ Math.round(100 - 100 * outp.length / str.length) + '%' );
+        }
     }
 }
