@@ -269,7 +269,13 @@ class Shoco {
     }
 
     static function main(){
-        for( str in ['test','hello shoko','hello how are you today']){
+        var strs = [
+            'test',
+            'hello shoko',
+            'hello how are you today',
+            'http://google.com/?q=hello world'
+        ];
+        for( str in strs ){
         var outp = compress(str);
         trace('"$str" ' + str.length + ' => ' + outp.length +'', 'ratio : '+ Math.round(100 - 100 * outp.length / str.length) + '%' );
         }
