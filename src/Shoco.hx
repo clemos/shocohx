@@ -1,15 +1,6 @@
+
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
-
-private typedef Pack = {
-  var word : Int;
-  var bytes_packed : Int;
-  var bytes_unpacked : Int;
-  var offsets : Array<Int>;
-  var masks : Array<Int>;
-  var header_mask : Int;
-  var header : Int;
-}
 
 private typedef Code = {
   var word : Int;
@@ -18,8 +9,8 @@ private typedef Code = {
 
 typedef ShocoPack = {
     word: Int,
-    bytes_packed: Int,
-    bytes_unpacked: Int,
+    packed: Int,
+    unpacked: Int,
     offsets: Array<Int>,
     masks: Array<Int>,
     header_mask: Int,
@@ -42,9 +33,9 @@ class Shoco {
 
     public static var DEFAULT_TABLE : ShocoTable = {
         packs: [
-            { word:0x80000000, bytes_packed:1, bytes_unpacked:2, offsets:[ 26, 24, 24, 24, 24, 24, 24, 24 ], masks:[ 15, 3, 0, 0, 0, 0, 0, 0 ], header_mask:0xc0, header:0x80 },
-            { word:0xc0000000, bytes_packed:2, bytes_unpacked:4, offsets:[ 25, 22, 19, 16, 16, 16, 16, 16 ], masks:[ 15, 7, 7, 7, 0, 0, 0, 0 ], header_mask:0xe0, header:0xc0 },
-            { word:0xe0000000, bytes_packed:4, bytes_unpacked:8, offsets:[ 23, 19, 15, 11, 8, 5, 2, 0 ], masks:[ 31, 15, 15, 15, 7, 7, 7, 3 ], header_mask:0xf0, header:0xe0 }
+            { word:0x80000000, packed:1, unpacked:2, offsets:[ 26, 24, 24, 24, 24, 24, 24, 24 ], masks:[ 15, 3, 0, 0, 0, 0, 0, 0 ], header_mask:0xc0, header:0x80 },
+            { word:0xc0000000, packed:2, unpacked:4, offsets:[ 25, 22, 19, 16, 16, 16, 16, 16 ], masks:[ 15, 7, 7, 7, 0, 0, 0, 0 ], header_mask:0xe0, header:0xc0 },
+            { word:0xe0000000, packed:4, unpacked:8, offsets:[ 23, 19, 15, 11, 8, 5, 2, 0 ], masks:[ 31, 15, 15, 15, 7, 7, 7, 3 ], header_mask:0xf0, header:0xe0 }
         ],
         MAX_SUCCESSOR_N: 7,
         PACK_COUNT: 3,
@@ -180,21 +171,21 @@ class Shoco {
             ['o', 'e', 's', 't', 'i', 'd', '\'', 'l', 'b', '-', 'm', 'a', 'r', 'n', 'p', 'w']
         ]
 
-    } 
+    }
 
     var table : ShocoTable;
 
     public function new( table : ShocoTable ) {
         this.table = table;
     }
-    
+
     public function compress(original:String):Bytes {
         var inp = Bytes.ofString(original);
-        var last_chr_index:Int, 
-            current_index:Int, 
-            successor_index:Int, 
-            n_consecutive:Int, 
-            pack_n:Int, 
+        var last_chr_index:Int,
+            current_index:Int,
+            successor_index:Int,
+            n_consecutive:Int,
+            pack_n:Int,
             rest:Int;
         var indices = [];
         var o = new BytesBuffer();
@@ -213,7 +204,7 @@ class Shoco {
                 if( ch & 0x80 > 0 ) {
                     // non-ascii case
                     o.addByte(0x00);
-                } 
+                }
 
                 o.addByte(ch);
                 i++;
@@ -221,19 +212,19 @@ class Shoco {
 
             indices[0] = table.chr_ids_by_chr[ch];
             last_chr_index = indices[0];
-            
+
             if( last_chr_index < 0 ) {
                 last_resort();
                 continue;
             }
-            
+
             var n_consecutive : Int = 0;
 
             for(n in 1...table.MAX_SUCCESSOR_N+1) {
                 n_consecutive = n;
 
                 var next = inp.get(i+n_consecutive);
-                
+
                 if( next == null ) break;
 
                 current_index = table.chr_ids_by_chr[next];
@@ -257,7 +248,7 @@ class Shoco {
 
                 code.word = table.packs[pack_n].word;
 
-                for( i in 0...table.packs[pack_n].bytes_unpacked ) {
+                for( i in 0...table.packs[pack_n].unpacked ) {
                     code.word |= indices[i] << table.packs[pack_n].offsets[i];
                 }
 
@@ -265,13 +256,13 @@ class Shoco {
                 code.bytes.setInt32(0, code.word);
 
                 //code.word = swap(code.word);
-                                
-                for( i in 0...table.packs[pack_n].bytes_packed ) {
+
+                for( i in 0...table.packs[pack_n].packed ) {
                     // swap bytes
                     o.addByte( code.bytes.get( code.bytes.length-1-i ) );
                 }
 
-                i += table.packs[pack_n].bytes_unpacked;
+                i += table.packs[pack_n].unpacked;
 
             } else {
                 last_resort();
@@ -310,7 +301,6 @@ class Shoco {
 
         while( i<inp.length ) {
             mark = decode_header( inp.get(i) );
-            //trace('mark ${inp.get(i)} $mark');
             if( mark < 0 ) {
                 var ch = inp.get(i);
                 if( ch == 0x00 ) {
@@ -327,7 +317,7 @@ class Shoco {
                 //code.word = swap(*(uint32_t *)in);
 
                 // FIXME: abstract
-                for( j in 0...table.packs[mark].bytes_packed ) {
+                for( j in 0...table.packs[mark].packed ) {
                     var b = inp.get(i+j);
                     code.bytes.set(j, b);
                 }
@@ -345,27 +335,27 @@ class Shoco {
                 mask = table.packs[mark].masks[0];
                 last_chr = table.chrs_by_chr_id[(code.word >> offset) & mask].charCodeAt(0);
                 out.addByte(last_chr);
-                
-                for( j in 1...table.packs[mark].bytes_unpacked ) {
+
+                for( j in 1...table.packs[mark].unpacked ) {
                     offset = table.packs[mark].offsets[j];
                     mask = table.packs[mark].masks[j];
                     last_chr = table.chrs_by_chr_and_successor_id[last_chr-table.MIN_CHR][(code.word >> offset) & mask].charCodeAt(0);
                     out.addByte(last_chr);
                 }
 
-                i += table.packs[mark].bytes_packed;
+                i += table.packs[mark].packed;
             }
 
         }
 
         return out.getBytes();
 
-    } 
+    }
 
     function find_best_encoding( indices : Array<Int>, n_consecutive:Int ): Int {
         var p = table.PACK_COUNT-1;
         while(p>=0){
-            if( (n_consecutive >= table.packs[p].bytes_unpacked) && check_indices(indices, p) ) {
+            if( (n_consecutive >= table.packs[p].unpacked) && check_indices(indices, p) ) {
                 return p;
             }
             p--;
@@ -374,7 +364,7 @@ class Shoco {
     }
 
     function check_indices( indices : Array<Int>, pack_n:Int ):Bool {
-        for( i in 0...table.packs[pack_n].bytes_unpacked ) {
+        for( i in 0...table.packs[pack_n].unpacked ) {
             if( indices[i] > table.packs[pack_n].masks[i] ) {
                 return false;
             }
