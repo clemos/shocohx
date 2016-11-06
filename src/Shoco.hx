@@ -1,4 +1,5 @@
 
+
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
 
@@ -223,9 +224,9 @@ class Shoco {
             for(n in 1...table.MAX_SUCCESSOR_N+1) {
                 n_consecutive = n;
 
-                var next = inp.get(i+n_consecutive);
+                if( i+n_consecutive >= inp.length ) break;
 
-                if( next == null ) break;
+                var next = inp.get(i+n_consecutive);
 
                 current_index = table.chr_ids_by_chr[next];
                 if( current_index < 0 ) break;
@@ -269,7 +270,9 @@ class Shoco {
             }
         }
 
-        return o.getBytes();
+        var out = o.getBytes();
+        
+        return out;
 
     }
 
@@ -301,6 +304,7 @@ class Shoco {
 
         while( i<inp.length ) {
             mark = decode_header( inp.get(i) );
+
             if( mark < 0 ) {
                 var ch = inp.get(i);
                 if( ch == 0x00 ) {
